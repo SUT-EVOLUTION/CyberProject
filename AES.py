@@ -1,112 +1,101 @@
 from Crypto import Random
 from Crypto.Cipher import AES
+import hashlib
+import rsa
 import os
-import os.path
-from os import listdir
-from os.path import isfile, join
-import time
 
+#-----------------AES----------------------------------------#
+def pad(s):
+    return s + b"\0"*(AES.block_size - len(s)%AES.block_size)
 
-class Encryptor:
-    def __init__(self, key):
-        self.key = key
+def encrypt(message, key, key_size=256):
+    message = pad(message)
+    iv = Random.new().read(AES.block_size)
+    cipher = AES.new(key,AES.MODE_CBC,iv) #fix
+    return iv+cipher.encrypt()
 
-    def pad(self, s):
-        return s + b"\0" * (AES.block_size - len(s) % AES.block_size)
+def decrypt(cipher, key):
+    iv = cipher.decrypt[:AES.block_size]
+    cipher = AES.new(key,AES.MODE_CBC,iv) #fix
+    plain = cipher.decrypt(cipher[AES.block_size:])
+    return plain.rstrip(b"\0")
 
-    def encrypt(self, message, key, key_size=256):
-        message = self.pad(message)
-        iv = Random.new().read(AES.block_size)
-        cipher = AES.new(key, AES.MODE_CBC, iv)
-        return iv + cipher.encrypt(message)
+def encrypt_file(file, key):
+    with open(file, 'rb') as fo:
+        plaintext = fo.read()
+    enc = encrypt(plaintext,key)
+    with open(file+".enc", 'wb') as fo:
+        fo.write()
 
-    def encrypt_file(self, file_name):
-        with open(file_name, 'rb') as fo:
-            plaintext = fo.read()
-        enc = self.encrypt(plaintext, self.key)
-        with open(file_name + ".enc", 'wb') as fo:
-            fo.write(enc)
-        os.remove(file_name)
+def decrypt_file(file, key):
+    with open(file, 'rb') as fo:
+        ciphertext = fo.read()
+    dec = decrypt(ciphertext,key)
+    with open(file[:-4],'wb') as fo:
+        fo.write()
 
-    def decrypt(self, ciphertext, key):
-        iv = ciphertext[:AES.block_size]
-        cipher = AES.new(key, AES.MODE_CBC, iv)
-        plaintext = cipher.decrypt(ciphertext[AES.block_size:])
-        return plaintext.rstrip(b"\0")
+#-----------------DS-----------------------------------------#
+def rsa_key():
+    public_key, private_key = rsa.newkeys(2048)
+    with open('public_key', 'wb') as key:
+        key.write(public_key.save_pkcs1('PEM'))
+    with open('private_key', 'wb') as key:
+        key.write(private_key.save_pkcs1('PEM'))
+    return private_key,public_key
 
-    def decrypt_file(self, file_name):
-        with open(file_name, 'rb') as fo:
-            ciphertext = fo.read()
-        dec = self.decrypt(ciphertext, self.key)
-        with open(file_name[:-4], 'wb') as fo:
-            fo.write(dec)
-        os.remove(file_name)
+def hash_SHA256(message):
+    SHA256 = hashlib.sha256(message.encode("UTF-8")).hexdigest()
+    return SHA256
 
-    def getAllFiles(self):
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        dirs = []
-        for dirName, subdirList, fileList in os.walk(dir_path):
-            for fname in fileList:
-                if (fname != 'script.py' and fname != 'data.txt.enc'):
-                    dirs.append(dirName + "\\" + fname)
-        return dirs
+def sign(message):
+    rsa_private,rsa_public = rsa_key()
+    signature = rsa.sign(message.encode("UTF-8"),rsa_private,'SHA-256')
+    return signature
 
-    def encrypt_all_files(self):
-        dirs = self.getAllFiles()
-        for file_name in dirs:
-            self.encrypt_file(file_name)
+#-----------------FO-----------------------------------------#
+def open_directory(dir):
+    path = dir
+    return os.chdir(path)
 
-    def decrypt_all_files(self):
-        dirs = self.getAllFiles()
-        for file_name in dirs:
-            self.decrypt_file(file_name)
+#-----------------PASS---------------------------------------#
+def pass_save(message):
+    with open("pass.txt",'wb') as fw:
+        fw.write(message.encode("UTF-8"))
 
+def pass_load():
+    with open("pass.txt",'wb') as fr:
+        x = fr.read().decode("UTF-8")
+    return x
 
-key = b'[EX\xc8\xd5\xbfI{\xa2$\x05(\xd5\x18\xbf\xc0\x85)\x10nc\x94\x02)j\xdf\xcb\xc4\x94\x9d(\x9e'
-enc = Encryptor(key)
-clear = lambda: os.system('cls')
-
-if os.path.isfile('data.txt.enc'):
-    while True:
-        password = str(input("Enter password: "))
-        enc.decrypt_file("data.txt.enc")
-        p = ''
-        with open("data.txt", "r") as f:
-            p = f.readlines()
-        if p[0] == password:
-            enc.encrypt_file("data.txt")
-            break
-
-    while True:
-        clear()
-        choice = int(input(
-            "1. Press '1' to encrypt file.\n2. Press '2' to decrypt file.\n3. Press '3' to Encrypt all files in the directory.\n4. Press '4' to decrypt all files in the directory.\n5. Press '5' to exit.\n"))
-        clear()
-        if choice == 1:
-            enc.encrypt_file(str(input("Enter name of file to encrypt: ")))
-        elif choice == 2:
-            enc.decrypt_file(str(input("Enter name of file to decrypt: ")))
-        elif choice == 3:
-            enc.encrypt_all_files()
-        elif choice == 4:
-            enc.decrypt_all_files()
-        elif choice == 5:
-            exit()
-        else:
-            print("Please select a valid option!")
+if os.path.isfile("passt.txt"):
+    p = pass_load()
+    scare = encrypt(p,hash_SHA256(p))
+    signature = sign(scare)
 
 else:
     while True:
-        clear()
-        password = str(input("Setting up stuff. Enter a password that will be used for decryption: "))
-        repassword = str(input("Confirm password: "))
-        if password == repassword:
-            break
-        else:
-            print("Passwords Mismatched!")
-    f = open("data.txt", "w+")
-    f.write(password)
-    f.close()
-    enc.encrypt_file("data.txt")
-    print("Please restart the program to complete the setup")
-    time.sleep(15)
+        try:
+            print("Select your directory by copying path")
+            print("Example: C:/USER")
+            dir = input("Enter : ")
+            open_directory(dir)
+            if os.path.realpath:
+                break
+        except IOError:
+            print("Error,cannot find directory.")
+
+    while True:
+        try:
+            print("Select your file")
+            print("Example: Dota2_TinkerScript1.txt")
+            dir = input("Enter : ")
+            read_file(dir)
+            if os.path.isfile:
+                pass_save(dir)
+                break
+
+        except NameError or NotADirectoryError:
+            print("Error,cannot find file.")
+    print("------------------------")
+    print("#Please Restart Program#")
+    print("------------------------")
