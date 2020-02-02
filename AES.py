@@ -49,18 +49,17 @@ def rsa_key():
     return private_key,public_key
 
 def hash_SHA256(message):
-    SHA256 = hashlib.sha256(message.encode("UTF-8")).hexdigest()
+    SHA256 = hashlib.sha256(message).hexdigest()
     return SHA256
 
 def sign(message):
     rsa_private,rsa_public = rsa_key()
-    signature = rsa.sign(message.encode("utf-8"),rsa_private,'SHA-256')
+    signature = rsa.sign(message,rsa_private,'SHA-256')
     return signature
 
 def verify(message,signature):
     k = open("public.key",'rb').read()
     public = rsa.PublicKey.load_pkcs1(k)
-    message = message.encode("utf-8")
     try:
         w = rsa.verify(message,signature,public)
         print("Successfull Verification")
@@ -76,23 +75,23 @@ def pass_save(message):
     with open("pass.txt",'wb') as fw:
         fw.write(message.encode("UTF-8"))
 #-----------------RUN----------------------------------------#
+while True:
+    try:
+        print("Select your directory that contain target file")
+        print("Example: C:/USER")
+        dir = input("Enter : ")
+        open_directory(dir)
+        if os.path.realpath:
+            break
+    except IOError:
+        print("Error,cannot find directory.")
+
 if os.path.isfile("pass.txt.enc"):
     iden = input(str("Enter Password: "))
     decrypt_file("pass.txt.enc",iden)
     conf = open("pass.txt").readline()
+    encrypt_file("pass.txt", conf)
     if iden==conf:
-        print("First thing please choose directory of file")
-        while True:
-            try:
-                print("Select your directory by copying path")
-                print("Example: C:/USER")
-                dir = input("Enter : ")
-                open_directory(dir)
-                if os.path.realpath:
-                    break
-            except IOError:
-                print("Error,cannot find directory.")
-
         print("Second is choose your file")
         while True:
             try:
@@ -117,7 +116,6 @@ if os.path.isfile("pass.txt.enc"):
             num_select = input(str("your choice: "))
 
             if num_select == '1':
-                message_file = open(dir).readline()
                 encrypt_file(dir,iden)
                 print("What you want to do next?")
             elif num_select == '2':
@@ -127,21 +125,20 @@ if os.path.isfile("pass.txt.enc"):
                     decrypt_file(dir,iden)
                 print("What you want to do next?")
             elif num_select == '3':
-                text = open(dir).read()
-                s = sign(text)
+                with open(dir, 'rb') as fo:
+                        plaintext = fo.read()
+                s = sign(plaintext)
                 with open('signed.txt', 'wb')as fo:
                     fo.write(s)
                 print("What you want to do next?")
             elif num_select == '4':
-                x = open(dir).read()
+                with open(dir, 'rb') as fo:
+                    plaintext = fo.read()
                 z = open('signed.txt', 'rb').read()
-                verify(x, z)
+                verify(plaintext, z)
                 print("What you want to do next?")
             elif num_select == '5':
                 print("Thank You ^^ ")
-                encrypt_file("pass.txt",iden)
-                if os.path.isfile("message_v.txt"):
-                    encrypt_file("message_v.txt", iden)
                 break
             else:
                 print("Error Choice")
@@ -167,4 +164,3 @@ else:
             break
         else:
             print("Password mismatch!!")
-
