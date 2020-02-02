@@ -42,9 +42,9 @@ def decrypt_file(file, key):
 #-----------------DS-----------------------------------------#
 def rsa_key():
     public_key, private_key = rsa.newkeys(2048)
-    with open('public_key', 'wb') as key:
+    with open('public.key', 'wb') as key:
         key.write(public_key.save_pkcs1('PEM'))
-    with open('private_key', 'wb') as key:
+    with open('private.key', 'wb') as key:
         key.write(private_key.save_pkcs1('PEM'))
     return private_key,public_key
 
@@ -54,23 +54,22 @@ def hash_SHA256(message):
 
 def sign(message):
     rsa_private,rsa_public = rsa_key()
-    signature = rsa.sign(message.encode("UTF-8"),rsa_private,'SHA-256')
+    signature = rsa.sign(message.encode("utf-8"),rsa_private,'SHA-256')
     return signature
 
-#def verify(message,signature):
-    #x = hash_SHA256(message)
-    #f = open("public_key").readline()
-    #y = rsa.verify(message,signature)
-
-
+def verify(message,signature):
+    k = open("public.key",'rb').read()
+    public = rsa.PublicKey.load_pkcs1(k)
+    message = message.encode("utf-8")
+    try:
+        w = rsa.verify(message,signature,public)
+        print("Successfull Verification")
+    except:
+        print("Failed Verification")
 #-----------------Directory----------------------------------#
 def open_directory(dir):
     path = dir
     return os.chdir(path)
-
-def read_file(file):
-    f = open(file,"rb").readline()
-    return f
 
 #-----------------PASS---------------------------------------#
 def pass_save(message):
@@ -100,45 +99,49 @@ if os.path.isfile("pass.txt.enc"):
                 print("Select your file")
                 print("Example: Dota2_TinkerScript1.txt")
                 dir = input("Enter : ")
-                read_file(dir)
                 if os.path.isfile:
                     with open(dir,'rb') as fo:
                         key = fo.read()
                     break
 
-            except NameError or NotADirectoryError:
+            except NameError or FileNotFoundError:
                 print("Error,cannot find file.")
 
         print('select number what you want to do')
         print('1 --> encrypt file with aes ')
         print('2 --> decrypt aes encryption file ')
         print('3 --> digital sign')
-        #print('4 --> verify digital signature')
+        print('4 --> verify digital signature')
         print('5 --> exit program')
-        message_file = open(dir).readline()
         while True:
             num_select = input(str("your choice: "))
 
             if num_select == '1':
+                message_file = open(dir).readline()
                 encrypt_file(dir,iden)
                 print("What you want to do next?")
             elif num_select == '2':
-                decrypt_file(dir,iden)
+                if os.path.isfile(dir+".enc"):
+                    decrypt_file(dir+".enc",iden)
+                else:
+                    decrypt_file(dir,iden)
                 print("What you want to do next?")
             elif num_select == '3':
-                x = encryption(message_file)
-                sign(x)
+                text = open(dir).read()
+                s = sign(text)
+                with open('signed.txt', 'wb')as fo:
+                    fo.write(s)
                 print("What you want to do next?")
-            #elif num_select == '4':
-                #message = input("message verify = ")
-                #with open("message_v.txt",'w+') as ms:
-                   # ms.write(message,dir)
-                #verify(message,dir)
-                #print("What you want to do next?")
+            elif num_select == '4':
+                x = open(dir).read()
+                z = open('signed.txt', 'rb').read()
+                verify(x, z)
+                print("What you want to do next?")
             elif num_select == '5':
                 print("Thank You ^^ ")
                 encrypt_file("pass.txt",iden)
-                encrypt_file("message_v.txt", iden)
+                if os.path.isfile("message_v.txt"):
+                    encrypt_file("message_v.txt", iden)
                 break
             else:
                 print("Error Choice")
@@ -152,8 +155,8 @@ if os.path.isfile("pass.txt.enc"):
 
 else:
     while True:
-        px = input(str("Enter Setup Password: "))
-        py = input(str("Confirm Password: "))
+        px = str(input("Enter Setup Password: "))
+        py = str(input("Confirm Password: "))
         if px == py:
             pass_save(px)
             with open("pass.txt",'w+') as s:
@@ -164,3 +167,4 @@ else:
             break
         else:
             print("Password mismatch!!")
+
