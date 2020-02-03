@@ -52,24 +52,19 @@ def hash_SHA256(message):
     SHA256 = hashlib.sha256(message).digest()
     return SHA256
 
-def DS_encryption(message):
-    public = rsa.PublicKey.load_pkcs1(readfile("public.key"))
-    hash_message = hash_SHA256(message)
-    with open("hash.txt",'wb') as fs:
-        fs.write(hash_message)
-    return rsa.encrypt(hash_message,public)
-
-def DS_decryption(message):
+def sign(message):
     private = rsa.PrivateKey.load_pkcs1(readfile("private.key"))
-    y = rsa.decrypt(message,private).decode("latin-1")
-    return y
+    s = rsa.sign(message,private,'SHA-256')
+    with open("signature.txt",'wb') as fo:
+        fo.write(s)
 
-def verify(message):
-    x = open("hash.key",'rb')
-    if hash_SHA256(message) == x:
-        return True
-    else:
-        return False
+def verify(message,signature):
+    public = rsa.PublicKey.load_pkcs1(readfile("public.key"))
+    try:
+        rsa.verify(message, signature, public)
+        print("Verified")
+    except:
+        print("Invalid")
 #-----------------Directory----------------------------------#
 def open_directory(dir):
     path = dir
@@ -137,18 +132,15 @@ if os.path.isfile("pass.txt.enc"):
                 print("What you want to do next?")
             elif num_select == '3':
                 rsa_key()
-                with open(dir, 'r+') as fo:
-                    text = fo.read()
-                s = DS_encryption(text.encode("utf-8"))
-                with open(dir, 'wb')as fo:
-                    fo.write(s)
+                text = readfile(dir)
+                sign(text)
                 print("What you want to do next?")
             elif num_select == '4':
-                with open(dir, 'rb') as fo:
-                    text = fo.read()
-                    s = DS_decryption(text)
-                with open(dir, 'w+') as fo:
-                    fo.write(s)
+                with open("signature.txt",'rb') as fo:
+                    s = fo.read()
+                text = readfile(dir)
+                verify(text,s)
+                print("What you want to do next?")
             elif num_select == '5':
                 print("Thank You ^^ ")
                 break
