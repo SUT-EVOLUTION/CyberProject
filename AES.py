@@ -49,26 +49,37 @@ def rsa_key():
     return private_key,public_key
 
 def hash_SHA256(message):
-    SHA256 = hashlib.sha256(message).hexdigest()
+    SHA256 = hashlib.sha256(message).digest()
     return SHA256
 
-def sign(message):
-    rsa_private,rsa_public = rsa_key()
-    signature = rsa.sign(message,rsa_private,'SHA-256')
-    return signature
+def DS_encryption(message):
+    public = rsa.PublicKey.load_pkcs1(readfile("public.key"))
+    hash_message = hash_SHA256(message)
+    with open("hash.txt",'wb') as fs:
+        fs.write(hash_message)
+    return rsa.encrypt(hash_message,public)
 
-def verify(message,signature):
-    k = open("public.key",'rb').read()
-    public = rsa.PublicKey.load_pkcs1(k)
-    try:
-        w = rsa.verify(message,signature,public)
-        print("Successfull Verification")
-    except:
-        print("Failed Verification")
+def DS_decryption(message):
+    private = rsa.PrivateKey.load_pkcs1(readfile("private.key"))
+    y = rsa.decrypt(message,private).decode("latin-1")
+    return y
+
+def verify(message):
+    x = open("hash.key",'rb')
+    if hash_SHA256(message) == x:
+        return True
+    else:
+        return False
 #-----------------Directory----------------------------------#
 def open_directory(dir):
     path = dir
     return os.chdir(path)
+
+def readfile(file):
+    text = open(file,'rb')
+    text_encode = text.read()
+    text.close()
+    return text_encode
 
 #-----------------PASS---------------------------------------#
 def pass_save(message):
@@ -113,7 +124,7 @@ if os.path.isfile("pass.txt.enc"):
         print('4 --> verify digital signature')
         print('5 --> exit program')
         while True:
-            num_select = input(str("your choice: "))
+            num_select = str(input("Your Choice: "))
 
             if num_select == '1':
                 encrypt_file(dir,iden)
@@ -125,18 +136,19 @@ if os.path.isfile("pass.txt.enc"):
                     decrypt_file(dir,iden)
                 print("What you want to do next?")
             elif num_select == '3':
-                with open(dir, 'rb') as fo:
-                        plaintext = fo.read()
-                s = sign(plaintext)
-                with open('signed.txt', 'wb')as fo:
+                rsa_key()
+                with open(dir, 'r+') as fo:
+                    text = fo.read()
+                s = DS_encryption(text.encode("utf-8"))
+                with open(dir, 'wb')as fo:
                     fo.write(s)
                 print("What you want to do next?")
             elif num_select == '4':
                 with open(dir, 'rb') as fo:
-                    plaintext = fo.read()
-                z = open('signed.txt', 'rb').read()
-                verify(plaintext, z)
-                print("What you want to do next?")
+                    text = fo.read()
+                    s = DS_decryption(text)
+                with open(dir, 'w+') as fo:
+                    fo.write(s)
             elif num_select == '5':
                 print("Thank You ^^ ")
                 break
